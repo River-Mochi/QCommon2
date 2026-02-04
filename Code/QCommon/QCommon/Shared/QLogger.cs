@@ -1,4 +1,8 @@
-﻿using Colossal.Logging;
+﻿// File: QCommon2/Code/QCommon/QCommon/Shared/QLogger.cs
+// Purpose: Shared logging utilities (file logger + Colossal ILog wrapper + message bundling).
+
+using Colossal.Core;   // MainThreadDispatcher
+using Colossal.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,6 +13,7 @@ using UnityEngine.InputSystem;
 
 namespace QCommonLib
 {
+
     // Log file location %AppData%\..\LocalLow\Colossal Order\Cities Skylines II\Logs\
 
     /// <summary>
@@ -211,10 +216,19 @@ namespace QCommonLib
 
         private void DoImpl(string message, LogLevel logLevel, string code)
         {
-            Game.SceneFlow.GameManager.instance.RunOnMainThread(() =>
+            // Run on main thread. Replaces the now-obsolete GameManager.RunOnMainThread and warning.
+            // Fallback keeps logging alive if dispatcher is not ready during shutdown edge cases.
+            try
+            {
+                MainThreadDispatcher.RunOnMainThread(() =>
+                {
+                    DoOnMain(message, logLevel, code);
+                });
+            }
+            catch
             {
                 DoOnMain(message, logLevel, code);
-            });
+            }
         }
 
         private void DoOnMain(string message, LogLevel logLevel, string code)
@@ -302,7 +316,7 @@ namespace QCommonLib
         public override void Debug(string message, string code = "")
         {
             if (IsDebug)
-            { 
+            {
                 if (_MirrorToStatic) QLog.Debug(message, code);
                 if (code != string.Empty) code += " ";
                 _Logger.Debug(code + message);
@@ -447,13 +461,12 @@ namespace QCommonLib
         }
         #endregion
 
-
         public static string GetFormattedTimeNow()
         {
             string timezone = "-Unknown";
             try
             {
-                TimeSpan ts = TimeZoneInfo.Local.GetUtcOffset(DateTime.Now);// TimeZone.CurrentTimeZone.GetUtcOffset(DateTime.Now);
+                TimeSpan ts = TimeZoneInfo.Local.GetUtcOffset(DateTime.Now);
                 timezone = $"{ts.Hours}:{ts.Minutes:D2}";
                 if (ts.Hours > 0 || (ts.Hours == 0 && ts.Minutes > 0))
                 {
